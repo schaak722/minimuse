@@ -8,6 +8,12 @@ from .models import User, ROLE_ADMIN
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+    app.config.setdefault("SQLALCHEMY_ENGINE_OPTIONS", {})
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"].update({
+    "pool_pre_ping": True,
+    "pool_recycle": 300,
+})
+
 
     # Init extensions
     db.init_app(app)
