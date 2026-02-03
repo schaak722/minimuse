@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block page_title %}Edit purchase costs{% endblock %}
+{% block content %}
+
+<div class="card">
+  <div class="card__header">
+    <div class="h2">Freight & Allocation</div>
+  </div>
+  <div class="card__body">
+    <div class="muted">Order: <strong>{{ po.order_number }}</strong></div>
+
+    <form method="post">
+      {{ form.hidden_tag() }}
+
+      <label class="label">Freight total (EUR)</label>
+      {{ form.freight_total(class_="input") }}
+
+      <label class="label">Allocation method</label>
+      {{ form.allocation_method(class_="input") }}
+
+      <div class="mt-16">
+        {{ form.submit(class_="btn btn--primary") }}
+        <a class="btn btn--ghost" href="{{ url_for('purchases.purchase_detail', po_id=po.id) }}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

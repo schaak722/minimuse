@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block page_title %}Sales Order{% endblock %}
+{% block content %}
+
+<div class="card">
+  <div class="card__header">
+    <div>
+      <div class="h2">Order {{ so.order_number }}</div>
+      <div class="muted">
+        {{ so.order_date }} • {{ so.channel }} • {{ so.currency }}
+        {% if so.customer_name %} • {{ so.customer_name }}{% endif %}
+        {% if so.customer_email %} • {{ so.customer_email }}{% endif %}
+      </div>
+    </div>
+    <div>
+      <a class="btn btn--ghost btn--sm" href="{{ url_for('sales.list_sales_orders') }}">Back</a>
+    </div>
+  </div>
+
+  <div class="card__body">
+    <div class="grid grid--4">
+      <div class="kpi">
+        <div class="kpi__label">Units</div>
+        <div class="kpi__value">{{ total_units }}</div>
+      </div>
+    
+      <div class="kpi">
+        <div class="kpi__label">Revenue (net)</div>
+        <div class="kpi__value">{{ "%.2f"|format(total_rev_net) }}</div>
+      </div>
+    
+      <div class="kpi">
+        <div class="kpi__label">Profit</div>
+        <div class="kpi__value">{{ "%.2f"|format(total_profit) }}</div>
+        <div class="muted">Margin: {{ "%.2f"|format(margin) }}%</div>
+      </div>
+    
+      <!-- NEW KPI #1 -->
+      <div class="kpi">
+        <div class="kpi__label">Discounts (gross)</div>
+        <div class="kpi__value">{{ "%.2f"|format(total_discount_gross) }}</div>
+        <div class="muted">Profit lost: {{ "%.2f"|format(profit_lost_to_discounts) }}</div>
+      </div>
+    
+      <!-- NEW KPI #2 -->
+      <div class="kpi">
+        <div class="kpi__label">Profit (no discount)</div>
+        <div class="kpi__value">{{ "%.2f"|format(profit_no_discount) }}</div>
+        <div class="muted">Discount net: {{ "%.2f"|format(total_discount_net) }}</div>
+      </div>
+    </div>
+
+    <div class="table-wrap mt-16">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>Description</th>
+            <th class="td-right">Qty</th>
+            <th class="td-right">Unit (gross)</th>
+            <th class="td-right">Line disc (gross)</th>
+            <th class="td-right">Order disc alloc (gross)</th>
+            <th class="td-right">Discount (gross)</th>
+            <th class="td-right">Revenue (net)</th>
+            <th class="td-right">Profit (no discount)</th>
+            <th class="td-right">Unit cost basis</th>
+            <th class="td-right">Cost total</th>
+            <th class="td-right">Profit</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for l in lines %}
+            <tr>
+              <td>{{ l.sku }}</td>
+              <td>{{ l.description or "" }}</td>
+              <td class="td-right">{{ l.qty }}</td>
+              <td class="td-right">{{ "%.2f"|format(l.unit_price_gross or 0) }}</td>
+              <td class="td-right">{{ "%.2f"|format(l.line_discount_gross or 0) }}</td>
+              {% set disc_gross = (l.line_discount_gross or 0) + (l.order_discount_alloc_gross or 0) %}
+              {% set disc_net = disc_gross / (1 + ((l.vat_rate or 18) / 100)) %}
+              {% set profit_no_disc = (l.profit or 0) + disc_net %}
+              <td class="td-right">{{ "%.2f"|format(l.order_discount_alloc_gross or 0) }}</td>
+              <td class="td-right">{{ "%.2f"|format(disc_gross) }}</td>
+              <td class="td-right">{{ "%.2f"|format(l.revenue_net or 0) }}</td>
+              <td class="td-right">{{ "%.2f"|format(profit_no_disc) }}</td>
+              <td class="td-right">{{ "%.4f"|format(l.unit_cost_basis or 0) }}</td>
+              <td class="td-right">{{ "%.2f"|format(l.cost_total or 0) }}</td>
+              <td class="td-right">{{ "%.2f"|format(l.profit or 0) }}</td>
+            </tr>
+          {% endfor %}
+          {% if lines|length == 0 %}
+            <tr><td colspan="10" class="muted">No lines found.</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

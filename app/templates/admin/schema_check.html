@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block page_title %}Schema Check{% endblock %}
+{% block content %}
+
+<div class="card">
+  <div class="card__header">
+    <div class="h2">Schema Check (read-only)</div>
+  </div>
+  <div class="card__body">
+    <p class="muted" style="margin-top:0;">
+      This page <strong>does not run</strong> any schema changes. It inspects the DB and shows what is missing,
+      plus suggested SQL for you to run manually in your DB console.
+    </p>
+
+    <div class="h2 mt-16">Tables</div>
+    <table class="table mt-8">
+      <thead>
+        <tr><th>Table</th><th>Status</th><th>Suggested SQL (only if missing)</th></tr>
+      </thead>
+      <tbody>
+        {% for r in table_rows %}
+          <tr>
+            <td><code>{{ r.name }}</code></td>
+            <td>
+              {% if r.present %}
+                <span class="badge badge--success">OK</span>
+              {% else %}
+                <span class="badge badge--danger">Missing</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if not r.present and create_sql.get(r.name) %}
+                <pre style="white-space:pre-wrap; margin:0;">{{ create_sql.get(r.name) }}</pre>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="h2 mt-24">Columns</div>
+    <table class="table mt-8">
+      <thead>
+        <tr><th>Table</th><th>Column</th><th>Type</th><th>Status</th><th>Suggested SQL</th></tr>
+      </thead>
+      <tbody>
+        {% for r in column_rows %}
+          <tr>
+            <td><code>{{ r.table }}</code></td>
+            <td><code>{{ r.name }}</code></td>
+            <td><code>{{ r.type }}</code></td>
+            <td>
+              {% if r.present %}
+                <span class="badge badge--success">OK</span>
+              {% else %}
+                <span class="badge badge--danger">Missing</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if r.sql %}
+                <code>{{ r.sql }}</code>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="h2 mt-24">Indexes (by name)</div>
+    <table class="table mt-8">
+      <thead>
+        <tr><th>Index</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        {% for r in index_rows %}
+          <tr>
+            <td><code>{{ r.name }}</code></td>
+            <td>
+              {% if r.present %}
+                <span class="badge badge--success">OK</span>
+              {% else %}
+                <span class="badge badge--danger">Missing</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="h2 mt-24">Constraints (named)</div>
+    <table class="table mt-8">
+      <thead>
+        <tr><th>Constraint</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        {% for r in constraint_rows %}
+          <tr>
+            <td><code>{{ r.name }}</code></td>
+            <td>
+              {% if r.present %}
+                <span class="badge badge--success">OK</span>
+              {% else %}
+                <span class="badge badge--danger">Missing</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+  </div>
+</div>
+
+{% endblock %}

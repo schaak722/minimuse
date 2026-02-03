@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block page_title %}Trends{% endblock %}
+{% block content %}
+
+<div class="toolbar">
+  <form class="toolbar__left" method="get">
+    <input class="input input--sm" type="date" name="from" value="{{ d_from }}" title="From date">
+    <input class="input input--sm" type="date" name="to" value="{{ d_to }}" title="To date">
+    <button class="btn btn--ghost btn--sm" type="submit">Apply</button>
+    <a class="btn btn--ghost btn--sm" href="{{ url_for('reports.trends') }}">Reset</a>
+  </form>
+
+  <div class="toolbar__right">
+    <a class="btn btn--ghost btn--sm" href="{{ url_for('reports.trends_csv', from=d_from, to=d_to) }}">Export CSV</a>
+    <a class="btn btn--ghost btn--sm" href="{{ url_for('reports.index') }}">Back to Reports</a>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <div class="card__label">Revenue (net)</div>
+    <div class="card__value">€{{ "%.2f"|format(total_rev) }}</div>
+  </div>
+  <div class="card">
+    <div class="card__label">Profit</div>
+    <div class="card__value">€{{ "%.2f"|format(total_profit) }}</div>
+    <div class="muted">Margin: {{ "%.2f"|format(total_margin) }}%</div>
+  </div>
+  <div class="card">
+    <div class="card__label">Profit lost to discounts (net)</div>
+    <div class="card__value">€{{ "%.2f"|format(total_disc_net) }}</div>
+  </div>
+</div>
+
+<div class="card mt-16">
+  <div class="card__header">
+    <div>
+      <div class="h2">Daily totals</div>
+      <div class="muted">If this table is empty, run Admin → Recompute Metrics.</div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th class="td-right">Orders</th>
+          <th class="td-right">Units</th>
+          <th class="td-right">Revenue (net)</th>
+          <th class="td-right">COGS</th>
+          <th class="td-right">Profit</th>
+          <th class="td-right">Margin %</th>
+          <th class="td-right">Discount (net)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+          {% set rev = r.revenue_net or 0 %}
+          {% set prof = r.profit or 0 %}
+          {% set margin = 0 %}
+          {% if rev and rev > 0 %}
+            {% set margin = (prof / rev) * 100 %}
+          {% endif %}
+          <tr>
+            <td>{{ r.metric_date }}</td>
+            <td class="td-right">{{ r.orders_count }}</td>
+            <td class="td-right">{{ r.units }}</td>
+            <td class="td-right">{{ "%.2f"|format(rev) }}</td>
+            <td class="td-right">{{ "%.2f"|format(r.cogs or 0) }}</td>
+            <td class="td-right">{{ "%.2f"|format(prof) }}</td>
+            <td class="td-right">{{ "%.2f"|format(margin) }}</td>
+            <td class="td-right">{{ "%.2f"|format(r.discount_net or 0) }}</td>
+          </tr>
+        {% endfor %}
+        {% if rows|length == 0 %}
+          <tr><td colspan="8" class="muted">No aggregates found for this date range.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block page_title %}Sales Items Report{% endblock %}
+{% block content %}
+
+<div class="toolbar">
+  <form class="toolbar__left" method="get">
+    <input class="input input--sm" name="q" value="{{ q }}" placeholder="Search SKU / description">
+    <select class="input input--sm" name="channel" style="min-width: 160px;">
+      <option value="">All channels</option>
+      {% for ch in channels %}
+        <option value="{{ ch|lower }}" {% if channel == (ch|lower) %}selected{% endif %}>{{ ch }}</option>
+      {% endfor %}
+    </select>
+    <input class="input input--sm" type="date" name="from" value="{{ date_from }}" title="From date">
+    <input class="input input--sm" type="date" name="to" value="{{ date_to }}" title="To date">
+
+    <button class="btn btn--ghost btn--sm" type="submit">Filter</button>
+    <a class="btn btn--ghost btn--sm" href="{{ url_for('sales.items_report') }}">Reset</a>
+  </form>
+
+  <div class="toolbar__right">
+    <a class="btn btn--ghost btn--sm" href="{{ url_for('sales.items_report_csv', q=q, channel=channel, from=date_from, to=date_to) }}">Export CSV</a>
+    <a class="btn btn--ghost btn--sm" href="{{ url_for('sales.list_sales_orders') }}">Back to Sales</a>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card__body">
+    <div class="grid grid--4">
+      <div class="kpi">
+        <div class="kpi__label">Units sold</div>
+        <div class="kpi__value">{{ total_qty }}</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi__label">Revenue (net)</div>
+        <div class="kpi__value">{{ "%.2f"|format(total_rev) }}</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi__label">Profit</div>
+        <div class="kpi__value">{{ "%.2f"|format(total_profit) }}</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi__label">Margin</div>
+        <div class="kpi__value">{{ "%.2f"|format(total_margin) }}%</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="table-wrap mt-16">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>SKU</th>
+        <th>Description</th>
+        <th class="td-right">Qty</th>
+        <th class="td-right">Revenue (net)</th>
+        <th class="td-right">Cost</th>
+        <th class="td-right">Profit</th>
+        <th class="td-right">Margin %</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+        {% set rev = r.revenue_net %}
+        {% set prof = r.profit %}
+        {% set margin = 0 %}
+        {% if rev and rev > 0 %}
+          {% set margin = (prof / rev) * 100 %}
+        {% endif %}
+        <tr>
+          <td><strong>{{ r.sku }}</strong></td>
+          <td class="muted">{{ r.description or "" }}</td>
+          <td class="td-right">{{ r.qty_sold or 0 }}</td>
+          <td class="td-right">{{ "%.2f"|format(rev or 0) }}</td>
+          <td class="td-right">{{ "%.2f"|format(r.cost_total or 0) }}</td>
+          <td class="td-right">{{ "%.2f"|format(prof or 0) }}</td>
+          <td class="td-right">{{ "%.2f"|format(margin) }}</td>
+        </tr>
+      {% endfor %}
+      {% if rows|length == 0 %}
+        <tr><td colspan="7" class="muted">No matching sales lines found.</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block page_title %}Catalog{% endblock %}
+{% block content %}
+
+<div class="toolbar">
+  <form method="get" class="toolbar__left" id="catalogFilterForm">
+    <input class="input input--sm" id="q" name="q" value="{{ q }}" placeholder="Search SKU or description">
+
+    <select class="input input--sm" name="status" id="status">
+      <option value="active" {% if status=="active" %}selected{% endif %}>Active</option>
+      <option value="inactive" {% if status=="inactive" %}selected{% endif %}>Inactive</option>
+      <option value="all" {% if status=="all" %}selected{% endif %}>All</option>
+    </select>
+
+    <select class="input input--sm" name="brand" id="brand">
+      <option value="">All brands</option>
+      {% for b in brands %}
+        <option value="{{ b }}" {% if brand==b %}selected{% endif %}>{{ b }}</option>
+      {% endfor %}
+    </select>
+
+    <select class="input input--sm" name="supplier" id="supplier">
+      <option value="">All suppliers</option>
+      {% for s in suppliers %}
+        <option value="{{ s }}" {% if supplier==s %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+
+    <button class="btn btn--ghost btn--sm" type="submit">Search</button>
+    <a class="btn btn--ghost btn--sm" href="{{ url_for('catalog.items_list') }}">Reset</a>
+  </form>
+
+  <div class="toolbar__right">
+    <a class="btn btn--ghost btn--sm"
+       href="{{ url_for('catalog.export_csv', q=q, brand=brand, supplier=supplier, status=status) }}">Export CSV</a>
+
+    {% if current_user.role != "viewer" %}
+      <a class="btn btn--ghost btn--sm" href="{{ url_for('catalog.import_csv') }}">Import CSV</a>
+      <a class="btn btn--primary btn--sm" href="{{ url_for('catalog.items_new') }}">New item</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="muted" style="margin-bottom:10px;">
+  Results: <span id="resultsCount">{{ total }}</span>
+  {% if q %} | Search: <strong>{{ q }}</strong>{% endif %}
+</div>
+
+<div class="table-wrap">
+  <table class="table" id="catalogTable">
+    <thead>
+      <tr>
+        <th>SKU</th>
+        <th>Description</th>
+        <th>Brand</th>
+        <th>Supplier</th>
+        <th>Colour</th>
+        <th>Size</th>
+        <th>Weight</th>
+        <th>VAT %</th>
+        <th>Status</th>
+        {% if current_user.role != "viewer" %}<th></th>{% endif %}
+      </tr>
+    </thead>
+    <tbody id="catalogTbody">
+      {% for it in items %}
+        <tr>
+          <td>{{ it.sku }}</td>
+          <td>{{ it.description }}</td>
+          <td>{{ it.brand or "" }}</td>
+          <td>{{ it.supplier or "" }}</td>
+          <td>{{ it.colour or "" }}</td>
+          <td>{{ it.size or "" }}</td>
+          <td>{{ it.weight or "" }}</td>
+          <td>{{ it.vat_rate }}</td>
+          <td>
+            {% if it.is_active %}
+              <span class="pill pill--ok">Active</span>
+            {% else %}
+              <span class="pill pill--warn">Inactive</span>
+            {% endif %}
+          </td>
+          {% if current_user.role != "viewer" %}
+            <td class="td-right">
+              <a class="btn btn--ghost btn--sm" href="{{ url_for('catalog.items_edit', item_id=it.id) }}">Edit</a>
+            </td>
+          {% endif %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if total_pages > 1 %}
+  <div class="toolbar" style="margin-top:12px;">
+    <div class="toolbar__left muted">
+      Page {{ page }} of {{ total_pages }}
+    </div>
+    <div class="toolbar__right">
+      {% if page > 1 %}
+        <a class="btn btn--ghost btn--sm"
+           href="{{ url_for('catalog.items_list', q=q, brand=brand, supplier=supplier, status=status, page=page-1) }}">Prev</a>
+      {% endif %}
+      {% if page < total_pages %}
+        <a class="btn btn--ghost btn--sm"
+           href="{{ url_for('catalog.items_list', q=q, brand=brand, supplier=supplier, status=status, page=page+1) }}">Next</a>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}
+
+<script>
+(function(){
+  // Typeahead search (top 50 only) - fast and Shopify-like
+  const qEl = document.getElementById("q");
+  const brandEl = document.getElementById("brand");
+  const supplierEl = document.getElementById("supplier");
+  const statusEl = document.getElementById("status");
+  const tbody = document.getElementById("catalogTbody");
+  const countEl = document.getElementById("resultsCount");
+
+  let timer = null;
+  function debounce(fn, ms){
+    return function(){
+      clearTimeout(timer);
+      timer = setTimeout(fn, ms);
+    };
+  }
+
+  function renderRows(items){
+    const canEdit = {{ "true" if current_user.role != "viewer" else "false" }};
+    tbody.innerHTML = items.map(it => `
+      <tr>
+        <td>${escapeHtml(it.sku)}</td>
+        <td>${escapeHtml(it.description)}</td>
+        <td>${escapeHtml(it.brand)}</td>
+        <td>${escapeHtml(it.supplier)}</td>
+        <td>${escapeHtml(it.colour)}</td>
+        <td>${escapeHtml(it.size)}</td>
+        <td>${escapeHtml(it.weight)}</td>
+        <td>${escapeHtml(it.vat_rate)}</td>
+        <td>${it.active ? '<span class="pill pill--ok">Active</span>' : '<span class="pill pill--warn">Inactive</span>'}</td>
+        ${canEdit ? `<td class="td-right"><a class="btn btn--ghost btn--sm" href="/catalog/items/${it.id}/edit">Edit</a></td>` : ''}
+      </tr>
+    `).join("");
+  }
+
+  function escapeHtml(str){
+    return (str || "").replace(/[&<>"']/g, m => ({
+      "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#039;"
+    }[m]));
+  }
+
+  async function doTypeahead(){
+    const q = (qEl.value || "").trim();
+    // Only run typeahead when user is typing; empty = don't spam server
+    if (q.length === 0){
+      return; // user can press Search to reset fully
+    }
+    const url = new URL("/catalog/api/search", window.location.origin);
+    url.searchParams.set("q", q);
+    url.searchParams.set("brand", brandEl.value || "");
+    url.searchParams.set("supplier", supplierEl.value || "");
+    url.searchParams.set("status", statusEl.value || "active");
+
+    const res = await fetch(url.toString(), { headers: { "Accept": "application/json" }});
+    if (!res.ok) return;
+    const data = await res.json();
+    renderRows(data.items);
+    countEl.textContent = data.items.length + " (typeahead)";
+  }
+
+  const handler = debounce(doTypeahead, 300);
+  qEl.addEventListener("input", handler);
+})();
+</script>
+
+{% endblock %}
+

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ config.APP_NAME }}{% block title %}{% endblock %}</title>
+
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='mini-muse-favicon.ico') }}">
+  <link rel="icon" type="image/png" sizes="256x256" href="{{ url_for('static', filename='favicon-256.png') }}">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  <script defer src="{{ url_for('static', filename='js/app.js') }}"></script>
+</head>
+
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+    <div class="brand">
+      <img
+        class="brand__logo-img"
+        src="{{ url_for('static', filename='img/mm-logo-peach.png') }}"
+        alt="mini muse"
+      />
+    </div>
+
+      <nav class="nav">
+        <a class="nav__item" href="{{ url_for('main.dashboard') }}">Dashboard</a>
+        <a class="nav__item" href="{{ url_for('catalog.items_list') }}">Catalog</a>
+        <a class="nav__item" href="{{ url_for('purchases.list_purchase_orders') }}">Purchases</a>
+        <a class="nav__item" href="{{ url_for('sales.list_sales_orders') }}">Sales</a>
+        <a class="nav__item" href="{{ url_for('reports.index') }}">Reports</a>
+
+        {% if current_user.is_authenticated and current_user.is_admin %}
+          <div class="nav__section">Admin</div>
+          <a class="nav__item" href="{{ url_for('admin.users_list') }}">Users</a>
+          <a class="nav__item" href="{{ url_for('admin.schema_check') }}">Schema Check</a>
+          {% if config.ALLOW_DB_PATCH == '1' %}
+            <a class="nav__item" href="{{ url_for('admin.db_patch_home') }}">DB Patch</a>
+          {% endif %}
+        {% endif %}
+      </nav>
+
+      <div class="sidebar__footer">
+        {% if current_user.is_authenticated %}
+          <div class="muted">Signed in as</div>
+          <div class="sidebar__user">{{ current_user.name }} ({{ current_user.role }})</div>
+          <a class="btn btn--ghost" href="{{ url_for('auth.logout') }}">Logout</a>
+        {% endif %}
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar__left">
+          <div class="page-title">{% block page_title %}Dashboard{% endblock %}</div>
+        </div>
+        <div class="topbar__right">
+          <div class="search"
+               data-api-url="{{ url_for('search.api_search') }}"
+               data-page-url="{{ url_for('search.search_page') }}">
+            <input id="globalSearch"
+                   class="search__input"
+                   placeholder="Search SKU, PO number, order number…"
+                   autocomplete="off" />
+            <div id="globalSearchDropdown" class="search__dropdown hidden"></div>
+          </div>
+        </div>
+      </header>
+
+      <section class="content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="flash-stack">
+              {% for category, message in messages %}
+                <div class="flash flash--{{ category }}">{{ message }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+      </section>
+    </main>
+  </div>
+</body>
+</html>
+

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block page_title %}Import Preview{% endblock %}
+{% block content %}
+
+<div class="card">
+  <div class="card__header">
+    <div>
+      <div class="h2">Preview: {{ batch.filename }}</div>
+      <div class="muted">
+        Orders: {{ payload.stats.orders_count }},
+        Lines: {{ payload.stats.lines_count }},
+        Missing SKUs: {{ payload.stats.missing_skus_count }}
+      </div>
+    </div>
+  </div>
+
+  <div class="card__body">
+    {% if payload.missing_skus_count > 0 %}
+      <div class="flash flash--warning">
+        Some SKUs are not in your Catalog yet. You can auto-create them during import.
+      </div>
+
+      <div class="card mt-16">
+        <div class="card__body">
+          <div class="h2">Missing SKUs (first 50 shown)</div>
+          <div class="muted" style="margin-top:6px;">
+            {{ payload.missing_skus[:50] | join(", ") }}
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('purchases.import_commit', batch_id=batch.id) }}">
+      {% if payload.missing_skus_count > 0 %}
+        <div class="mt-16">
+          <label class="label-inline">
+            <input type="checkbox" name="create_missing" value="1" checked>
+            Create missing SKUs automatically (recommended)
+          </label>
+        </div>
+      {% else %}
+        <input type="hidden" name="create_missing" value="1">
+      {% endif %}
+
+      <div class="mt-16">
+        <button class="btn btn--primary" type="submit">Import Now</button>
+        <a class="btn btn--ghost" href="{{ url_for('purchases.import_upload') }}">Cancel</a>
+      </div>
+    </form>
+
+    <div class="card mt-16">
+      <div class="card__body">
+        <div class="h2">Orders detected</div>
+        <ul class="list">
+          {% for o in payload.orders %}
+            <li>
+              <strong>{{ o.order_number }}</strong> — {{ o.supplier or "-" }} — lines: {{ o.lines|length }}
+              {% if o.freight_total %} | Freight total: {{ o.freight_total }}{% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block page_title %}Import Sales CSV{% endblock %}
+{% block content %}
+
+<div class="card">
+  <div class="card__header">
+    <div class="h2">Upload sales orders</div>
+  </div>
+  <div class="card__body">
+    <p class="muted" style="margin-top:0;">
+      Sales import is <strong>strict</strong>: headers must match the template exactly.
+      Your CSV should have <strong>one row per order line</strong>.
+    </p>
+
+    <div class="mt-8">
+      <a class="btn btn--ghost" href="{{ url_for('sales.import_template_csv') }}">Download Template CSV</a>
+    </div>
+
+    {% if header_issues %}
+      <div class="flash flash--danger mt-16">
+        <strong>Header mismatch.</strong>
+        {% if header_issues.missing %}<div>Missing: {{ header_issues.missing|join(', ') }}</div>{% endif %}
+        {% if header_issues.extra %}<div>Unexpected: {{ header_issues.extra|join(', ') }}</div>{% endif %}
+      </div>
+    {% endif %}
+
+    {% if row_errors %}
+      <div class="flash flash--danger mt-16">
+        <strong>Validation failed.</strong> Fix the rows below and try again. Nothing was imported.
+      </div>
+      <table class="table mt-8">
+        <thead>
+          <tr><th>Row</th><th>Field</th><th>Issue</th><th>Value</th></tr>
+        </thead>
+        <tbody>
+          {% for e in row_errors %}
+            <tr>
+              <td>{{ e.row }}</td>
+              <td><code>{{ e.field }}</code></td>
+              <td>{{ e.issue }}</td>
+              <td><code>{{ e.value }}</code></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+
+    <div class="flash flash--info">
+      Malta pricing is assumed VAT-inclusive. Net revenue is calculated by backing out VAT (default 18% unless SKU VAT is set in Catalog).
+    </div>
+
+    <form method="post" enctype="multipart/form-data" action="{{ url_for('sales.import_parse') }}">
+      <label class="label">CSV file</label>
+      <input class="input" type="file" name="file" accept=".csv,text/csv" />
+      <div class="mt-16">
+        <button class="btn btn--primary" type="submit">Upload & Preview</button>
+        <a class="btn btn--ghost" href="{{ url_for('sales.list_sales_orders') }}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}

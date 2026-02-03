@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block page_title %}Purchase Order{% endblock %}
+{% block content %}
+
+<div class="toolbar">
+  <div class="toolbar__left">
+    <a class="btn btn--ghost btn--sm" href="{{ url_for('purchases.list_purchase_orders') }}">← Back to Purchases</a>
+  </div>
+
+  <div class="toolbar__right">
+    <details class="dropdown">
+      <summary class="btn btn--ghost btn--sm dropdown__toggle">
+        More actions <span class="dropdown__chev">▾</span>
+      </summary>
+      <div class="dropdown__menu">
+        <a class="dropdown__item" href="{{ url_for('purchases.export_purchase_lines_csv', po_id=po.id) }}">Export lines CSV</a>
+      </div>
+    </details>
+
+    {% if current_user.role != "viewer" %}
+      <a class="btn btn--ghost btn--sm" href="{{ url_for('purchases.edit_costs', po_id=po.id) }}">Edit freight & recalc</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="card__header">
+    <div>
+      <div class="h2">{{ po.order_number }}</div>
+      <div class="muted">
+        Supplier: {{ po.supplier_name or "-" }}
+        • Brand: {{ po.brand or "-" }}
+        • Order date: {{ po.order_date or "-" }}
+        • Arrival: {{ po.arrival_date or "-" }}
+      </div>
+      <div class="muted mt-12">
+        Allocation: <strong>{{ po.allocation_method or "value" }}</strong>
+        • Freight total: <strong>€{{ "%.2f"|format(po.freight_total or 0) }}</strong>
+        • Currency: <strong>{{ po.currency or "EUR" }}</strong>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="grid mt-16">
+  <div class="card">
+    <div class="card__label">Total qty</div>
+    <div class="card__value">{{ total_qty or 0 }}</div>
+  </div>
+
+  <div class="card">
+    <div class="card__label">Goods cost (net)</div>
+    <div class="card__value">€{{ "%.2f"|format(total_goods or 0) }}</div>
+  </div>
+
+  <div class="card">
+    <div class="card__label">Freight allocated</div>
+    <div class="card__value">€{{ "%.2f"|format(total_freight_alloc or 0) }}</div>
+  </div>
+
+  <div class="card">
+    <div class="card__label">Packaging total</div>
+    <div class="card__value">€{{ "%.2f"|format(total_packaging or 0) }}</div>
+  </div>
+</div>
+
+<div class="table-wrap mt-16">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>SKU</th>
+        <th>Description</th>
+        <th class="td-right">Qty</th>
+        <th class="td-right">Unit cost (net)</th>
+        <th class="td-right">Pkg / unit</th>
+        <th class="td-right">Freight / unit</th>
+        <th class="td-right">Landed / unit</th>
+        <th class="td-right">Freight alloc (total)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for ln in lines %}
+        <tr>
+          <td>
+            <a href="{{ url_for('catalog.items_list', q=ln.sku) }}"><strong>{{ ln.sku }}</strong></a>
+          </td>
+          <td class="muted">{{ ln.description or "" }}</td>
+          <td class="td-right">{{ ln.qty or 0 }}</td>
+          <td class="td-right">{{ "%.2f"|format(ln.unit_cost_net or 0) }}</td>
+          <td class="td-right">{{ "%.2f"|format(ln.packaging_per_unit or 0) }}</td>
+          <td class="td-right">{{ "%.2f"|format(ln.freight_allocated_per_unit or 0) }}</td>
+          <td class="td-right"><strong>{{ "%.2f"|format(ln.landed_unit_cost or 0) }}</strong></td>
+          <td class="td-right">{{ "%.2f"|format(ln.freight_allocated_total or 0) }}</td>
+        </tr>
+      {% endfor %}
+
+      {% if lines|length == 0 %}
+        <tr><td colspan="8" class="muted">No lines.</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

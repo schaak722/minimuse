@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block page_title %}Import catalog CSV{% endblock %}
+{% block content %}
+
+<div class="card">
+  <div class="card__header">
+    <div class="h2">Import CSV</div>
+  </div>
+  <div class="card__body">
+    <p class="muted" style="margin-top:0;">
+      Expected columns (headers): <code>sku</code>, <code>description</code>, <code>brand</code>, <code>supplier</code>,
+      <code>colour</code>, <code>size</code>, <code>weight_kg</code>, <code>vat_rate_pct</code>, <code>active</code>.
+    </p>
+
+    <form method="post" enctype="multipart/form-data">
+      <label class="label">CSV file</label>
+      <input class="input" type="file" name="file" accept=".csv,text/csv" />
+
+      <div class="mt-16">
+        <button class="btn btn--primary" type="submit">Upload & Import</button>
+        <a class="btn btn--ghost" href="{{ url_for('catalog.items_list') }}">Cancel</a>
+      </div>
+    </form>
+
+    <div class="card mt-16">
+      <div class="card__body">
+        <div class="h2">Template</div>
+        <pre style="white-space:pre-wrap; margin:8px 0 0;">
+sku,description,brand,supplier,colour,size,weight_kg,vat_rate_pct,active
+ABC-123,Cotton baby booties,Maylily,Maylily,Beige,0-6m,0.050,18,1
+        </pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+

@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block page_title %}Dashboard{% endblock %}
+{% block content %}
+
+<div class="muted" style="margin-bottom:10px;">
+  Snapshot as of {{ today }}
+  {% if last_recompute %}
+    • Aggregates last recomputed: <strong>{{ last_recompute }}</strong>
+  {% else %}
+    • Aggregates not built yet — run <strong>Admin → Recompute Metrics</strong>
+  {% endif %}
+</div>
+
+<div class="toolbar">
+  <div class="toolbar__left">
+    <a class="btn btn--ghost btn--sm" href="{{ url_for('sales.list_sales_orders') }}">Sales</a>
+    <a class="btn btn--ghost btn--sm" href="{{ url_for('purchases.list_purchase_orders') }}">Purchases</a>
+    <a class="btn btn--ghost btn--sm" href="{{ url_for('reports.index') }}">Reports</a>
+  </div>
+
+  <div class="toolbar__right">
+    {% if current_user.role == "admin" %}
+      <a class="btn btn--ghost btn--sm" href="{{ url_for('admin.metrics_home') }}">Recompute Metrics</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <div class="card__label">Revenue (net) — 7D</div>
+    <div class="card__value">€{{ "%.2f"|format(kpi_7d.revenue_net) }}</div>
+    <div class="muted">Profit: €{{ "%.2f"|format(kpi_7d.profit) }} • Margin: {{ "%.2f"|format(kpi_7d.margin_pct) }}%</div>
+  </div>
+
+  <div class="card">
+    <div class="card__label">Revenue (net) — MTD</div>
+    <div class="card__value">€{{ "%.2f"|format(kpi_mtd.revenue_net) }}</div>
+    <div class="muted">Profit: €{{ "%.2f"|format(kpi_mtd.profit) }} • Margin: {{ "%.2f"|format(kpi_mtd.margin_pct) }}%</div>
+  </div>
+
+  <div class="card">
+    <div class="card__label">Revenue (net) — YTD</div>
+    <div class="card__value">€{{ "%.2f"|format(kpi_ytd.revenue_net) }}</div>
+    <div class="muted">Profit: €{{ "%.2f"|format(kpi_ytd.profit) }} • Margin: {{ "%.2f"|format(kpi_ytd.margin_pct) }}%</div>
+  </div>
+
+  <div class="card">
+    <div class="card__label">Profit lost to discounts (MTD, net)</div>
+    <div class="card__value">€{{ "%.2f"|format(kpi_mtd.discount_net) }}</div>
+    <div class="muted">Profit no-discount: €{{ "%.2f"|format(kpi_mtd.profit_no_discount) }}</div>
+  </div>
+</div>
+
+<div class="grid mt-16">
+  <!-- Top sold -->
+  <div class="card">
+    <div class="card__header">
+      <div>
+        <div class="h2">Top sold items (MTD)</div>
+        <div class="muted">By units sold</div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th class="td-right">Units</th>
+            <th class="td-right">Revenue (net)</th>
+            <th class="td-right">Profit</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in top_skus_units %}
+            <tr>
+              <td><strong>{{ r.sku }}</strong></td>
+              <td class="td-right">{{ r.units or 0 }}</td>
+              <td class="td-right">{{ "%.2f"|format(r.rev or 0) }}</td>
+              <td class="td-right">{{ "%.2f"|format(r.profit or 0) }}</td>
+            </tr>
+          {% endfor %}
+          {% if top_skus_units|length == 0 %}
+            <tr><td colspan="4" class="muted">No data yet.</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Discount impact -->
+  <div class="card">
+    <div class="card__header">
+      <div>
+        <div class="h2">Biggest discount impact (MTD)</div>
+        <div class="muted">Net discount = profit lost due to discounts</div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th class="td-right">Units</th>
+            <th class="td-right">Revenue (net)</th>
+            <th class="td-right">Discount (net)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in top_discount_skus %}
+            <tr>
+              <td><strong>{{ r.sku }}</strong></td>
+              <td class="td-right">{{ r.units or 0 }}</td>
+              <td class="td-right">{{ "%.2f"|format(r.rev or 0) }}</td>
+              <td class="td-right">{{ "%.2f"|format(r.disc_net or 0) }}</td>
+            </tr>
+          {% endfor %}
+          {% if top_discount_skus|length == 0 %}
+            <tr><td colspan="4" class="muted">No data yet.</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Alerts -->
+  <div class="card">
+    <div class="card__header">
+      <div>
+        <div class="h2">Margin alerts (MTD)</div>
+        <div class="muted">
+          Negative profit SKUs: {{ neg_count }} • Low margin (&lt; {{ margin_threshold }}%): {{ low_count }}
+        </div>
+      </div>
+      <div>
+        <a class="btn btn--ghost btn--sm" href="{{ url_for('sales.alerts') }}">Open Alerts</a>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th class="td-right">Revenue (net)</th>
+            <th class="td-right">Profit</th>
+            <th class="td-right">Margin %</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in worst_margin_rows %}
+            <tr>
+              <td><strong>{{ r.sku }}</strong></td>
+              <td class="td-right">{{ "%.2f"|format(r.rev) }}</td>
+              <td class="td-right">{{ "%.2f"|format(r.profit) }}</td>
+              <td class="td-right">{{ "%.2f"|format(r.margin) }}</td>
+            </tr>
+          {% endfor %}
+          {% if worst_margin_rows|length == 0 %}
+            <tr><td colspan="4" class="muted">No margin alerts yet.</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

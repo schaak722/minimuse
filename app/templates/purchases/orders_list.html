@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block page_title %}Purchases{% endblock %}
+{% block content %}
+
+<div class="toolbar">
+  <form class="toolbar__left" method="get">
+    <input class="input input--sm" name="q" value="{{ q }}" placeholder="Search order number / supplier / brand" style="min-width:260px;">
+
+    <select class="input input--sm" name="date_field" title="Date field" style="min-width:140px;">
+      <option value="order" {% if date_field == "order" %}selected{% endif %}>Order date</option>
+      <option value="arrival" {% if date_field == "arrival" %}selected{% endif %}>Arrival date</option>
+    </select>
+
+    <input class="input input--sm" type="date" name="from" value="{{ date_from }}" title="From date">
+    <input class="input input--sm" type="date" name="to" value="{{ date_to }}" title="To date">
+
+    <button class="btn btn--ghost btn--sm" type="submit">Filter</button>
+    <a class="btn btn--ghost btn--sm" href="{{ url_for('purchases.list_purchase_orders') }}">Reset</a>
+  </form>
+
+  <div class="toolbar__right">
+    <details class="dropdown">
+      <summary class="btn btn--ghost btn--sm dropdown__toggle">
+        Saved <span class="dropdown__chev">▾</span>
+      </summary>
+      <div class="dropdown__menu">
+        {% for ss in saved_searches %}
+          <a class="dropdown__item" href="{{ ss.url }}">{{ ss.name }}</a>
+          {% if current_user.role != "viewer" %}
+            <form method="post" action="{{ url_for('saved_searches.delete', saved_id=ss.id) }}" style="display:inline;">
+              <button class="dropdown__item" type="submit" style="color:#b42318;">Delete "{{ ss.name }}"</button>
+            </form>
+          {% endif %}
+          <div class="dropdown__sep"></div>
+        {% endfor %}
+        {% if saved_searches|length == 0 %}
+          <div class="dropdown__item muted">No saved searches yet.</div>
+          <div class="dropdown__sep"></div>
+        {% endif %}
+
+        {% if current_user.role != "viewer" %}
+          <div class="dropdown__item muted">Save current filters</div>
+          <form method="post" action="{{ url_for('saved_searches.save') }}" style="padding:10px;">
+            <input type="hidden" name="context" value="purchases">
+            <input type="hidden" name="q" value="{{ q }}">
+            <input type="hidden" name="date_field" value="{{ date_field }}">
+            <input type="hidden" name="from" value="{{ date_from }}">
+            <input type="hidden" name="to" value="{{ date_to }}">
+            <input class="input input--sm" name="name" placeholder="Name (e.g. Feb arrivals)" style="width:100%; margin-bottom:8px;">
+            <button class="btn btn--primary btn--sm" type="submit" style="width:100%;">Save</button>
+          </form>
+        {% endif %}
+      </div>
+    </details>
+
+    {% if current_user.role != "viewer" %}
+      <a class="btn btn--primary btn--sm" href="{{ url_for('purchases.import_upload') }}">Import Purchases CSV</a>
+    {% endif %}
+
+    <details class="dropdown">
+      <summary class="btn btn--ghost btn--sm dropdown__toggle">
+        More actions <span class="dropdown__chev">▾</span>
+      </summary>
+      <div class="dropdown__menu">
+        <a class="dropdown__item" href="{{ url_for('purchases.export_purchase_orders_csv', q=q, date_field=date_field, from=date_from, to=date_to) }}">Export CSV</a>
+      </div>
+    </details>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Order #</th>
+        <th>Supplier</th>
+        <th>Brand</th>
+        <th>Order date</th>
+        <th>Arrival</th>
+        <th>Freight total</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for po in orders %}
+        <tr>
+          <td>{{ po.order_number }}</td>
+          <td>{{ po.supplier_name or "" }}</td>
+          <td>{{ po.brand or "" }}</td>
+          <td>{{ po.order_date or "" }}</td>
+          <td>{{ po.arrival_date or "" }}</td>
+          <td>{{ po.freight_total or "" }}</td>
+          <td class="td-right">
+            <a class="btn btn--ghost btn--sm" href="{{ url_for('purchases.purchase_detail', po_id=po.id) }}">View</a>
+          </td>
+        </tr>
+      {% endfor %}
+      {% if orders|length == 0 %}
+        <tr><td colspan="7" class="muted">No purchase orders found.</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+
+<div class="toolbar mt-16">
+  <div class="toolbar__left muted">
+    Showing {{ (page-1)*per_page + 1 if total > 0 else 0 }}–{{ (page-1)*per_page + orders|length }} of {{ total }}
+  </div>
+  <div class="toolbar__right">
+    {% if has_prev %}
+      <a class="btn btn--ghost btn--sm" href="?{% if qs_no_page %}{{ qs_no_page }}&{% endif %}page={{ page-1 }}">Prev</a>
+    {% endif %}
+    {% if has_next %}
+      <a class="btn btn--ghost btn--sm" href="?{% if qs_no_page %}{{ qs_no_page }}&{% endif %}page={{ page+1 }}">Next</a>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

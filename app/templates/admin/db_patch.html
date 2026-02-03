@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block page_title %}DB Patch{% endblock %}
+{% block content %}
+
+<div class="card">
+  <div class="card__header">
+    <div>
+      <div class="h2">Database Patch</div>
+      <div class="muted">
+        This runs an idempotent schema patch (CREATE TABLE IF NOT EXISTS / ADD COLUMN IF NOT EXISTS).
+        Use this after deployments where new columns/tables were added and you don’t use Alembic yet.
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-16">
+    <form method="post" action="{{ url_for('admin.db_patch_run') }}">
+      <button class="btn" type="submit">Run DB Patch</button>
+      <a class="btn btn--ghost" href="{{ url_for('admin.users_list') }}">Back to Admin</a>
+    </form>
+  </div>
+
+  {% if results %}
+    <div class="mt-16">
+      <div class="h2">Results</div>
+      <div class="muted">Executed statements (most recent first)</div>
+
+      <div class="table-wrap mt-12">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Status</th>
+              <th>Statement</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in results %}
+              <tr>
+                <td>{{ loop.index }}</td>
+                <td>
+                  {% if r.ok %}
+                    <span class="pill pill--success">OK</span>
+                  {% else %}
+                    <span class="pill pill--danger">FAILED</span>
+                  {% endif %}
+                </td>
+                <td><code style="white-space:pre-wrap;">{{ r.sql }}</code></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% if error %}
+        <div class="mt-16">
+          <div class="pill pill--danger">Error: {{ error }}</div>
+        </div>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+
+{% endblock %}

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block page_title %}Import Purchases CSV{% endblock %}
+{% block content %}
+
+<div class="card">
+  <div class="card__header">
+    <div class="h2">Upload supplier purchases</div>
+  </div>
+  <div class="card__body">
+    <p class="muted" style="margin-top:0;">
+      Purchases import is <strong>strict</strong>: headers must match the template exactly.
+    </p>
+
+    <div class="mt-8">
+      <a class="btn btn--ghost" href="{{ url_for('purchases.import_template_csv') }}">Download Template CSV</a>
+    </div>
+
+    {% if header_issues %}
+      <div class="flash flash--danger mt-16">
+        <strong>Header mismatch.</strong>
+        {% if header_issues.missing %}<div>Missing: {{ header_issues.missing|join(', ') }}</div>{% endif %}
+        {% if header_issues.extra %}<div>Unexpected: {{ header_issues.extra|join(', ') }}</div>{% endif %}
+      </div>
+    {% endif %}
+
+    {% if row_errors %}
+      <div class="flash flash--danger mt-16">
+        <strong>Validation failed.</strong> Fix the rows below and try again. Nothing was imported.
+      </div>
+      <table class="table mt-8">
+        <thead>
+          <tr><th>Row</th><th>Field</th><th>Issue</th><th>Value</th></tr>
+        </thead>
+        <tbody>
+          {% for e in row_errors %}
+            <tr>
+              <td>{{ e.row }}</td>
+              <td><code>{{ e.field }}</code></td>
+              <td>{{ e.issue }}</td>
+              <td><code>{{ e.value }}</code></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data" action="{{ url_for('purchases.import_parse') }}">
+      <label class="label">CSV file</label>
+      <input class="input" type="file" name="file" accept=".csv,text/csv" />
+      <div class="mt-16">
+        <button class="btn btn--primary" type="submit">Upload & Preview</button>
+        <a class="btn btn--ghost" href="{{ url_for('purchases.list_purchase_orders') }}">Cancel</a>
+      </div>
+    </form>
+
+    <div class="card mt-16">
+      <div class="card__body">
+        <div class="h2">Template example</div>
+        <pre style="white-space:pre-wrap; margin:8px 0 0;">
+{{ expected_headers|join(',') }}
+ML/PROF/2/12/2025,Maylily,Maylily,02/12/2025,10/12/2025,SR-PRZE-MILOBE,Cotton baby booties,Dino / Beige,0-3M,0.120,10,19.47,0.30,35,value
+        </pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

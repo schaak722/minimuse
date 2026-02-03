@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block page_title %}Sales Summary{% endblock %}
+{% block content %}
+
+<div class="toolbar">
+  <form class="toolbar__left" method="get">
+    <input class="input input--sm" type="date" name="from" value="{{ d_from }}" title="From date">
+    <input class="input input--sm" type="date" name="to" value="{{ d_to }}" title="To date">
+
+    <select class="input input--sm" name="channel" style="min-width: 160px;">
+      <option value="">All channels</option>
+      {% for ch in channels %}
+        <option value="{{ ch|lower }}" {% if channel == (ch|lower) %}selected{% endif %}>{{ ch }}</option>
+      {% endfor %}
+    </select>
+
+    <button class="btn btn--ghost btn--sm" type="submit">Apply</button>
+    <a class="btn btn--ghost btn--sm" href="{{ url_for('reports.sales_summary') }}">Reset</a>
+  </form>
+
+  <div class="toolbar__right">
+    <a class="btn btn--ghost btn--sm" href="{{ url_for('reports.sales_summary_csv', from=d_from, to=d_to, channel=channel) }}">Export CSV</a>
+    <a class="btn btn--ghost btn--sm" href="{{ url_for('reports.index') }}">Back to Reports</a>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <div class="card__label">Orders</div>
+    <div class="card__value">{{ kpi.orders_count }}</div>
+    <div class="muted">Units: {{ kpi.units }}</div>
+  </div>
+
+  <div class="card">
+    <div class="card__label">Revenue (net)</div>
+    <div class="card__value">€{{ "%.2f"|format(kpi.revenue_net) }}</div>
+  </div>
+
+  <div class="card">
+    <div class="card__label">Profit</div>
+    <div class="card__value">€{{ "%.2f"|format(kpi.profit) }}</div>
+    <div class="muted">Margin: {{ "%.2f"|format(kpi.margin_pct) }}%</div>
+  </div>
+
+  <div class="card">
+    <div class="card__label">Profit lost to discounts (net)</div>
+    <div class="card__value">€{{ "%.2f"|format(kpi.discount_net) }}</div>
+    <div class="muted">Profit no-discount: €{{ "%.2f"|format(kpi.profit_no_discount) }}</div>
+  </div>
+</div>
+
+<div class="card mt-16">
+  <div class="card__header">
+    <div>
+      <div class="h2">Channel breakdown</div>
+      <div class="muted">Revenue and profit by channel for the selected range</div>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Channel</th>
+          <th class="td-right">Orders</th>
+          <th class="td-right">Units</th>
+          <th class="td-right">Revenue (net)</th>
+          <th class="td-right">Profit</th>
+          <th class="td-right">Margin %</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in channel_rows %}
+          {% set rev = r.rev_net or 0 %}
+          {% set prof = r.profit or 0 %}
+          {% set margin = 0 %}
+          {% if rev and rev > 0 %}
+            {% set margin = (prof / rev) * 100 %}
+          {% endif %}
+          <tr>
+            <td><strong>{{ r.channel }}</strong></td>
+            <td class="td-right">{{ r.orders or 0 }}</td>
+            <td class="td-right">{{ r.units or 0 }}</td>
+            <td class="td-right">{{ "%.2f"|format(rev) }}</td>
+            <td class="td-right">{{ "%.2f"|format(prof) }}</td>
+            <td class="td-right">{{ "%.2f"|format(margin) }}</td>
+          </tr>
+        {% endfor %}
+        {% if channel_rows|length == 0 %}
+          <tr><td colspan="6" class="muted">No data for the selected range.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

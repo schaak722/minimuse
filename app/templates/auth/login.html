@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block page_title %}Log in{% endblock %}
+{% block content %}
+<div class="auth-card">
+  <h1 class="h1">Log in</h1>
+  <form method="post">
+    {{ form.hidden_tag() }}
+
+    <label class="label">Email</label>
+    {{ form.email(class_="input", placeholder="you@company.com") }}
+
+    <label class="label">Password</label>
+    {{ form.password(class_="input", placeholder="••••••••") }}
+
+    <div class="mt-16">
+      {{ form.submit(class_="btn btn--primary") }}
+    </div>
+  </form>
+</div>
+{% endblock %}
+

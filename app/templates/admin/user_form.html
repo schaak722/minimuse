@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% if mode == "create" %}
+  {% set title = "Create user" %}
+{% else %}
+  {% set title = "Edit user" %}
+{% endif %}
+{% block page_title %}{{ title }}{% endblock %}
+{% block content %}
+
+<div class="card">
+  <div class="card__header">
+    <div class="h2">{{ title }}</div>
+  </div>
+  <div class="card__body">
+    <form method="post">
+      {{ form.hidden_tag() }}
+
+      {% if mode == "create" %}
+        <label class="label">Email</label>
+        {{ form.email(class_="input") }}
+
+        <label class="label">Name</label>
+        {{ form.name(class_="input") }}
+
+        <label class="label">Role</label>
+        {{ form.role(class_="input") }}
+
+        <label class="label">Temporary password</label>
+        {{ form.password(class_="input") }}
+
+        <div class="row mt-12">
+          <div>{{ form.is_active() }} <label class="label-inline">Active</label></div>
+        </div>
+
+        <div class="mt-16">
+          {{ form.submit(class_="btn btn--primary") }}
+          <a class="btn btn--ghost" href="{{ url_for('admin.users_list') }}">Cancel</a>
+        </div>
+      {% else %}
+        <label class="label">Name</label>
+        {{ form.name(class_="input") }}
+
+        <label class="label">Role</label>
+        {{ form.role(class_="input") }}
+
+        <label class="label">New password (optional)</label>
+        {{ form.new_password(class_="input") }}
+
+        <div class="row mt-12">
+          <div>{{ form.is_active() }} <label class="label-inline">Active</label></div>
+        </div>
+
+        <div class="mt-16">
+          {{ form.submit(class_="btn btn--primary") }}
+          <a class="btn btn--ghost" href="{{ url_for('admin.users_list') }}">Cancel</a>
+        </div>
+      {% endif %}
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+

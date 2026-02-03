@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block page_title %}Users{% endblock %}
+{% block content %}
+
+<div class="toolbar">
+  <form method="get" class="toolbar__left">
+    <input class="input input--sm" name="q" value="{{ q }}" placeholder="Search users (email/name/role)">
+    <button class="btn btn--ghost btn--sm" type="submit">Search</button>
+  </form>
+
+  <div class="toolbar__right">
+    <a class="btn btn--primary btn--sm" href="{{ url_for('admin.users_new') }}">New user</a>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Email</th>
+        <th>Name</th>
+        <th>Role</th>
+        <th>Status</th>
+        <th>Created</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+        <tr>
+          <td>{{ u.email }}</td>
+          <td>{{ u.name }}</td>
+          <td><span class="pill">{{ u.role }}</span></td>
+          <td>
+            {% if u.is_active %}
+              <span class="pill pill--ok">Active</span>
+            {% else %}
+              <span class="pill pill--warn">Inactive</span>
+            {% endif %}
+          </td>
+          <td>{{ u.created_at.strftime("%Y-%m-%d") }}</td>
+          <td class="td-right">
+            <a class="btn btn--ghost btn--sm" href="{{ url_for('admin.users_edit', user_id=u.id) }}">Edit</a>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}
+

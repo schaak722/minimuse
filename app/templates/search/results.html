@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block page_title %}Search{% endblock %}
+{% block content %}
+
+<div class="card">
+  <div class="card__header">
+    <div>
+      <div class="h2">Search results</div>
+      <div class="muted">Query: <strong>{{ q }}</strong></div>
+    </div>
+  </div>
+
+  {% if not q %}
+    <div class="muted">Type in the search bar above (SKU, PO number, order number).</div>
+  {% endif %}
+</div>
+
+{% if q %}
+  <div class="grid mt-16">
+    <div class="card">
+      <div class="card__header">
+        <div>
+          <div class="h2">Catalog</div>
+          <div class="muted">SKUs / descriptions</div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>SKU</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in results.catalog %}
+              <tr>
+                <td><a href="{{ r.url }}"><strong>{{ r.title }}</strong></a></td>
+                <td class="muted">{{ r.subtitle }}</td>
+              </tr>
+            {% endfor %}
+            {% if results.catalog|length == 0 %}
+              <tr><td colspan="2" class="muted">No matches.</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__header">
+        <div>
+          <div class="h2">Purchases</div>
+          <div class="muted">POs and PO lines</div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Result</th>
+              <th>Info</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in results.purchases %}
+              <tr>
+                <td><a href="{{ r.url }}"><strong>{{ r.title }}</strong></a></td>
+                <td class="muted">{{ r.subtitle }}</td>
+              </tr>
+            {% endfor %}
+            {% if results.purchases|length == 0 %}
+              <tr><td colspan="2" class="muted">No matches.</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card__header">
+        <div>
+          <div class="h2">Sales</div>
+          <div class="muted">Orders and order lines</div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Result</th>
+              <th>Info</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in results.sales %}
+              <tr>
+                <td><a href="{{ r.url }}"><strong>{{ r.title }}</strong></a></td>
+                <td class="muted">{{ r.subtitle }}</td>
+              </tr>
+            {% endfor %}
+            {% if results.sales|length == 0 %}
+              <tr><td colspan="2" class="muted">No matches.</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block page_title %}Reports{% endblock %}
+{% block content %}
+
+<div class="muted" style="margin-bottom:10px;">
+  Reports snapshot as of {{ today }}
+  {% if last_recompute %}
+    • Aggregates last recomputed: <strong>{{ last_recompute }}</strong>
+  {% else %}
+    • Aggregates not built yet — run <strong>Admin → Recompute Metrics</strong>
+  {% endif %}
+</div>
+
+<div class="grid">
+  <div class="card">
+    <div class="card__label">Revenue (net) — last 7 days</div>
+    <div class="card__value">€{{ "%.2f"|format(kpi_7d.revenue_net) }}</div>
+    <div class="muted">Profit: €{{ "%.2f"|format(kpi_7d.profit) }} • Margin: {{ "%.2f"|format(kpi_7d.margin_pct) }}%</div>
+  </div>
+
+  <div class="card">
+    <div class="card__label">Revenue (net) — MTD</div>
+    <div class="card__value">€{{ "%.2f"|format(kpi_mtd.revenue_net) }}</div>
+    <div class="muted">Profit: €{{ "%.2f"|format(kpi_mtd.profit) }} • Margin: {{ "%.2f"|format(kpi_mtd.margin_pct) }}%</div>
+  </div>
+
+  <div class="card">
+    <div class="card__label">Revenue (net) — YTD</div>
+    <div class="card__value">€{{ "%.2f"|format(kpi_ytd.revenue_net) }}</div>
+    <div class="muted">Profit: €{{ "%.2f"|format(kpi_ytd.profit) }} • Margin: {{ "%.2f"|format(kpi_ytd.margin_pct) }}%</div>
+  </div>
+
+  <div class="card">
+    <div class="card__label">Profit lost to discounts (MTD, net)</div>
+    <div class="card__value">€{{ "%.2f"|format(kpi_mtd.discount_net) }}</div>
+    <div class="muted">Profit no-discount: €{{ "%.2f"|format(kpi_mtd.profit_no_discount) }}</div>
+  </div>
+</div>
+
+<div class="toolbar mt-16">
+  <div class="toolbar__left">
+    <a class="btn btn--ghost btn--sm" href="{{ url_for('reports.sales_summary') }}">Sales summary</a>
+    <a class="btn btn--ghost btn--sm" href="{{ url_for('reports.trends') }}">Trends</a>
+    <a class="btn btn--ghost btn--sm" href="{{ url_for('sales.items_report') }}">Items report</a>
+    <a class="btn btn--ghost btn--sm" href="{{ url_for('sales.discount_report') }}">Discount report</a>
+    <a class="btn btn--ghost btn--sm" href="{{ url_for('sales.alerts') }}">Alerts</a>
+  </div>
+
+  <div class="toolbar__right">
+    {% if current_user.role == "admin" %}
+      <a class="btn btn--ghost btn--sm" href="{{ url_for('admin.metrics_home') }}">Recompute Metrics</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="grid mt-16">
+  <!-- Card 1: Biggest discount impact -->
+  <div class="card">
+    <div class="card__header">
+      <div>
+        <div class="h2">Biggest discount impact SKUs (MTD)</div>
+        <div class="muted">Net discount = profit lost due to discounts</div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th class="td-right">Units</th>
+            <th class="td-right">Revenue (net)</th>
+            <th class="td-right">Discount (net)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in top_discount_skus %}
+            <tr>
+              <td><strong>{{ r.sku }}</strong></td>
+              <td class="td-right">{{ r.units or 0 }}</td>
+              <td class="td-right">{{ "%.2f"|format(r.rev or 0) }}</td>
+              <td class="td-right">{{ "%.2f"|format(r.disc_net or 0) }}</td>
+            </tr>
+          {% endfor %}
+          {% if top_discount_skus|length == 0 %}
+            <tr><td colspan="4" class="muted">No aggregate data yet. Recompute metrics.</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Card 2: Top sold items -->
+  <div class="card">
+    <div class="card__header">
+      <div>
+        <div class="h2">Top sold items (MTD)</div>
+        <div class="muted">By units sold</div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th class="td-right">Units</th>
+            <th class="td-right">Revenue (net)</th>
+            <th class="td-right">Profit</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in top_skus_units %}
+            <tr>
+              <td><strong>{{ r.sku }}</strong></td>
+              <td class="td-right">{{ r.units or 0 }}</td>
+              <td class="td-right">{{ "%.2f"|format(r.rev or 0) }}</td>
+              <td class="td-right">{{ "%.2f"|format(r.profit or 0) }}</td>
+            </tr>
+          {% endfor %}
+          {% if top_skus_units|length == 0 %}
+            <tr><td colspan="4" class="muted">No aggregate data yet. Recompute metrics.</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Card 3: Low / Negative margin -->
+  <div class="card">
+    <div class="card__header">
+      <div>
+        <div class="h2">Low / Negative margin SKUs (MTD)</div>
+        <div class="muted">
+          Negative profit SKUs: {{ neg_count }} • Low margin (&lt; {{ margin_threshold }}%): {{ low_count }}
+        </div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th class="td-right">Revenue (net)</th>
+            <th class="td-right">Profit</th>
+            <th class="td-right">Margin %</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in low_margin_skus %}
+            <tr>
+              <td><strong>{{ r.sku }}</strong></td>
+              <td class="td-right">{{ "%.2f"|format(r.rev_net) }}</td>
+              <td class="td-right">{{ "%.2f"|format(r.profit) }}</td>
+              <td class="td-right">{{ "%.2f"|format(r.margin) }}</td>
+            </tr>
+          {% endfor %}
+          {% if low_margin_skus|length == 0 %}
+            <tr><td colspan="4" class="muted">No low-margin SKUs detected for MTD.</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="mt-16">
+      <a class="btn btn--ghost btn--sm" href="{{ url_for('sales.alerts') }}">Open Alerts report</a>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

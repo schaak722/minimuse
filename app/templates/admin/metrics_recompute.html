@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block page_title %}Recompute Metrics{% endblock %}
+{% block content %}
+
+<div class="card">
+  <div class="card__body">
+    <p class="muted">
+      This rebuilds <strong>daily_metrics</strong> and <strong>sku_metrics_daily</strong> for the selected date range.
+      Run this after importing sales or after fixing cost/discount logic.
+    </p>
+
+    <form method="post" action="{{ url_for('admin.metrics_recompute') }}" style="display:flex; gap:10px; align-items:end; flex-wrap:wrap;">
+      <div>
+        <label class="label">From</label>
+        <input class="input" type="date" name="from" value="{{ d_from }}">
+      </div>
+      <div>
+        <label class="label">To</label>
+        <input class="input" type="date" name="to" value="{{ d_to }}">
+      </div>
+
+      <button class="btn btn--primary" type="submit">Recompute</button>
+    </form>
+
+    <div class="mt-16 muted">
+      Tip: Start with month-to-date for speed, then do a wider range when needed.
+    </div>
+  </div>
+</div>
+
+{% endblock %}
