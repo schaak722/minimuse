@@ -3,11 +3,14 @@ from flask import abort
 from flask import Blueprint, current_app, render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
 from sqlalchemy import text
+from datetime import datetime, timedelta
 
 from ..decorators import require_admin
 from ..extensions import db
 from ..models import User
 from .forms import UserCreateForm, UserEditForm
+from ..models import SalesOrder, SalesLine, DailyMetric, SkuMetricDaily, AppState
+
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -868,3 +871,274 @@ def db_patch_run():
     # show newest first
     results = list(reversed(results))
     return render_template("admin/db_patch.html", results=results, error=error)
+
+def _safe_parse_date(s: str):
+    s = (s or "").strip()
+    if not s:
+        return None
+    try:
+        return datetime.strptime(s, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+def _recompute_metrics_range(d_from, d_to):
+    # delete then rebuild (keeps things consistent if sales were removed/edited)
+    db.session.execute(
+        text("DELETE FROM sku_metrics_daily WHERE metric_date >= :d_from AND metric_date <= :d_to"),
+        {"d_from": d_from, "d_to": d_to},
+    )
+    db.session.execute(
+        text("DELETE FROM daily_metrics WHERE metric_date >= :d_from AND metric_date <= :d_to"),
+        {"d_from": d_from, "d_to": d_to},
+    )
+
+    # daily_metrics
+    db.session.execute(
+        text(
+            """
+            INSERT INTO daily_metrics (
+              metric_date, orders_count, units, revenue_net, cogs, profit, discount_gross, discount_net, created_at, updated_at
+            )
+            SELECT
+              so.order_date::date AS metric_date,
+              COUNT(DISTINCT so.id) AS orders_count,
+              COALESCE(SUM(sl.qty), 0) AS units,
+              COALESCE(SUM(sl.revenue_net), 0) AS revenue_net,
+              COALESCE(SUM(sl.cost_total), 0) AS cogs,
+              COALESCE(SUM(sl.profit), 0) AS profit,
+              COALESCE(SUM(COALESCE(sl.line_discount_gross,0) + COALESCE(sl.order_discount_alloc_gross,0)), 0) AS discount_gross,
+              COALESCE(SUM(
+                (COALESCE(sl.line_discount_gross,0) + COALESCE(sl.order_discount_alloc_gross,0))
+                / (1 + (sl.vat_rate / 100))
+              ), 0) AS discount_net,
+              NOW() AS created_at,
+              NOW() AS updated_at
+            FROM sales_lines sl
+            JOIN sales_orders so ON so.id = sl.sales_order_id
+            WHERE so.order_date IS NOT NULL
+              AND so.order_date >= :d_from
+              AND so.order_date <= :d_to
+            GROUP BY so.order_date::date
+            """
+        ),
+        {"d_from": d_from, "d_to": d_to},
+    )
+
+    # sku_metrics_daily
+    db.session.execute(
+        text(
+            """
+            INSERT INTO sku_metrics_daily (
+              metric_date, sku, units, revenue_net, profit, discount_gross, discount_net, created_at
+            )
+            SELECT
+              so.order_date::date AS metric_date,
+              sl.sku AS sku,
+              COALESCE(SUM(sl.qty), 0) AS units,
+              COALESCE(SUM(sl.revenue_net), 0) AS revenue_net,
+              COALESCE(SUM(sl.profit), 0) AS profit,
+              COALESCE(SUM(COALESCE(sl.line_discount_gross,0) + COALESCE(sl.order_discount_alloc_gross,0)), 0) AS discount_gross,
+              COALESCE(SUM(
+                (COALESCE(sl.line_discount_gross,0) + COALESCE(sl.order_discount_alloc_gross,0))
+                / (1 + (sl.vat_rate / 100))
+              ), 0) AS discount_net,
+              NOW() AS created_at
+            FROM sales_lines sl
+            JOIN sales_orders so ON so.id = sl.sales_order_id
+            WHERE so.order_date IS NOT NULL
+              AND so.order_date >= :d_from
+              AND so.order_date <= :d_to
+            GROUP BY so.order_date::date, sl.sku
+            """
+        ),
+        {"d_from": d_from, "d_to": d_to},
+    )
+
+    # stamp app_state
+    stamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+    db.session.execute(
+        text(
+            """
+            INSERT INTO app_state (key, value, updated_at)
+            VALUES ('metrics_last_recompute', :val, NOW())
+            ON CONFLICT (key) DO UPDATE
+              SET value = EXCLUDED.value,
+                  updated_at = NOW()
+            """
+        ),
+        {"val": stamp},
+    )
+
+
+@admin_bp.get("/metrics")
+@login_required
+@require_admin
+def metrics_home():
+    # default to last 30 days
+    today = datetime.utcnow().date()
+    d_from = (today - timedelta(days=30)).isoformat()
+    d_to = today.isoformat()
+    return render_template("admin/metrics_recompute.html", d_from=d_from, d_to=d_to)
+
+
+@admin_bp.post("/metrics")
+@login_required
+@require_admin
+def metrics_recompute():
+    d_from = _safe_parse_date(request.form.get("from"))
+    d_to = _safe_parse_date(request.form.get("to"))
+
+    if not d_from or not d_to:
+        flash("Please select a valid From and To date.", "danger")
+        return redirect(url_for("admin.metrics_home"))
+
+    if d_from > d_to:
+        flash("From date cannot be after To date.", "danger")
+        return redirect(url_for("admin.metrics_home"))
+
+    try:
+        _recompute_metrics_range(d_from, d_to)
+        db.session.commit()
+        flash("Metrics recomputed successfully.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Metrics recompute failed: {e}", "danger")
+
+    return redirect(url_for("admin.metrics_home"))
+
+def _safe_parse_date(s: str):
+    s = (s or "").strip()
+    if not s:
+        return None
+    try:
+        return datetime.strptime(s, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+def _recompute_metrics_range(d_from, d_to):
+    # delete then rebuild (keeps things consistent if sales were removed/edited)
+    db.session.execute(
+        text("DELETE FROM sku_metrics_daily WHERE metric_date >= :d_from AND metric_date <= :d_to"),
+        {"d_from": d_from, "d_to": d_to},
+    )
+    db.session.execute(
+        text("DELETE FROM daily_metrics WHERE metric_date >= :d_from AND metric_date <= :d_to"),
+        {"d_from": d_from, "d_to": d_to},
+    )
+
+    # daily_metrics
+    db.session.execute(
+        text(
+            """
+            INSERT INTO daily_metrics (
+              metric_date, orders_count, units, revenue_net, cogs, profit, discount_gross, discount_net, created_at, updated_at
+            )
+            SELECT
+              so.order_date::date AS metric_date,
+              COUNT(DISTINCT so.id) AS orders_count,
+              COALESCE(SUM(sl.qty), 0) AS units,
+              COALESCE(SUM(sl.revenue_net), 0) AS revenue_net,
+              COALESCE(SUM(sl.cost_total), 0) AS cogs,
+              COALESCE(SUM(sl.profit), 0) AS profit,
+              COALESCE(SUM(COALESCE(sl.line_discount_gross,0) + COALESCE(sl.order_discount_alloc_gross,0)), 0) AS discount_gross,
+              COALESCE(SUM(
+                (COALESCE(sl.line_discount_gross,0) + COALESCE(sl.order_discount_alloc_gross,0))
+                / (1 + (sl.vat_rate / 100))
+              ), 0) AS discount_net,
+              NOW() AS created_at,
+              NOW() AS updated_at
+            FROM sales_lines sl
+            JOIN sales_orders so ON so.id = sl.sales_order_id
+            WHERE so.order_date IS NOT NULL
+              AND so.order_date >= :d_from
+              AND so.order_date <= :d_to
+            GROUP BY so.order_date::date
+            """
+        ),
+        {"d_from": d_from, "d_to": d_to},
+    )
+
+    # sku_metrics_daily
+    db.session.execute(
+        text(
+            """
+            INSERT INTO sku_metrics_daily (
+              metric_date, sku, units, revenue_net, profit, discount_gross, discount_net, created_at
+            )
+            SELECT
+              so.order_date::date AS metric_date,
+              sl.sku AS sku,
+              COALESCE(SUM(sl.qty), 0) AS units,
+              COALESCE(SUM(sl.revenue_net), 0) AS revenue_net,
+              COALESCE(SUM(sl.profit), 0) AS profit,
+              COALESCE(SUM(COALESCE(sl.line_discount_gross,0) + COALESCE(sl.order_discount_alloc_gross,0)), 0) AS discount_gross,
+              COALESCE(SUM(
+                (COALESCE(sl.line_discount_gross,0) + COALESCE(sl.order_discount_alloc_gross,0))
+                / (1 + (sl.vat_rate / 100))
+              ), 0) AS discount_net,
+              NOW() AS created_at
+            FROM sales_lines sl
+            JOIN sales_orders so ON so.id = sl.sales_order_id
+            WHERE so.order_date IS NOT NULL
+              AND so.order_date >= :d_from
+              AND so.order_date <= :d_to
+            GROUP BY so.order_date::date, sl.sku
+            """
+        ),
+        {"d_from": d_from, "d_to": d_to},
+    )
+
+    # stamp app_state
+    stamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+    db.session.execute(
+        text(
+            """
+            INSERT INTO app_state (key, value, updated_at)
+            VALUES ('metrics_last_recompute', :val, NOW())
+            ON CONFLICT (key) DO UPDATE
+              SET value = EXCLUDED.value,
+                  updated_at = NOW()
+            """
+        ),
+        {"val": stamp},
+    )
+
+
+@admin_bp.get("/metrics")
+@login_required
+@require_admin
+def metrics_home():
+    # default to last 30 days
+    today = datetime.utcnow().date()
+    d_from = (today - timedelta(days=30)).isoformat()
+    d_to = today.isoformat()
+    return render_template("admin/metrics_recompute.html", d_from=d_from, d_to=d_to)
+
+
+@admin_bp.post("/metrics")
+@login_required
+@require_admin
+def metrics_recompute():
+    d_from = _safe_parse_date(request.form.get("from"))
+    d_to = _safe_parse_date(request.form.get("to"))
+
+    if not d_from or not d_to:
+        flash("Please select a valid From and To date.", "danger")
+        return redirect(url_for("admin.metrics_home"))
+
+    if d_from > d_to:
+        flash("From date cannot be after To date.", "danger")
+        return redirect(url_for("admin.metrics_home"))
+
+    try:
+        _recompute_metrics_range(d_from, d_to)
+        db.session.commit()
+        flash("Metrics recomputed successfully.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Metrics recompute failed: {e}", "danger")
+
+    return redirect(url_for("admin.metrics_home"))
+
